@@ -406,13 +406,18 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                             public void invoke(Tuple2<Integer, Integer> value) throws Exception {}
                         });
         sinkMethod.invoke(sink, resource5);
+        env.disableOperatorChaining();
 
+        System.out.println(env.getExecutionPlan());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 
         JobVertex sourceMapFilterVertex =
                 jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
         JobVertex reduceSinkVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
+        env.execute();
+
+        assertEquals(sourceMapFilterVertex.getMinResources(), resource1);
         assertTrue(
                 sourceMapFilterVertex
                         .getMinResources()
