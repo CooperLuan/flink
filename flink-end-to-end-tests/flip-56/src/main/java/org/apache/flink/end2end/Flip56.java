@@ -9,7 +9,10 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -23,10 +26,13 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.util.stream.Collectors;
 
 /** test FLIP-56 features 测试方法. 1. with slot 2. without slot */
 public class Flip56 {
@@ -40,7 +46,7 @@ public class Flip56 {
         ResourceSpec resource3 = ResourceSpec.newBuilder(0.3, 300).build();
         ResourceSpec resource4 = ResourceSpec.newBuilder(0.4, 400).build();
         ResourceSpec resource5 = ResourceSpec.newBuilder(0.5, 500).build();
-        ResourceSpec resource6 = ResourceSpec.newBuilder(1, 1000).build();
+        ResourceSpec resource6 = ResourceSpec.newBuilder(1, 700).build();
 
         Method opMethod = getSetResourcesMethodAndSetAccessible(SingleOutputStreamOperator.class);
         Method sinkMethod = getSetResourcesMethodAndSetAccessible(DataStreamSink.class);
@@ -48,7 +54,10 @@ public class Flip56 {
         Configuration configuration = new Configuration();
         //必须设置这个,否则在operator里面设置资源之后会无法启动任务
         configuration.setString("jobmanager.scheduler", "adaptive");
-        configuration.setString("parallelism.default", "5");
+        configuration.setString("parallelism.default", "2");
+        configuration.setString("taskmanager.numberOfTaskSlots", "1");
+        configuration.setString("taskmanager.cpu.cores", "1");
+        configuration.setString("taskmanager.memory.task.heap.size", "1 gb");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(
                 configuration);
 
@@ -90,14 +99,21 @@ public class Flip56 {
                                 });
 
         DataStreamSink<Tuple2<Integer, Integer>> sink =
-                source.addSink(
+                reduce.addSink(
                         new RichSinkFunction<Tuple2<Integer, Integer>>() {
                             @Override
                             public void invoke(Tuple2<Integer, Integer> value) throws Exception {
                                 LOG.info("final sink:" + value.toString());
                             }
                         });
+        //opMethod.invoke(source, resource1, resource1);
+        //opMethod.invoke(map, resource2, resource2);
+        //opMethod.invoke(filter, resource3, resource3);
+        //opMethod.invoke(reduce, resource4, resource4);
+        //sinkMethod.invoke(sink, resource5, resource5);
 
+
+        // set minResource , preferredResource
         opMethod.invoke(source, resource1, resource6);
         opMethod.invoke(map, resource2, resource6);
         opMethod.invoke(filter, resource3, resource6);
@@ -106,7 +122,19 @@ public class Flip56 {
 
         env.disableOperatorChaining();
         //System.out.println(env.getExecutionPlan());
+
+        JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph(
+                "",
+                false));
+        LOG.info("resource request:" + jobGraph
+                .getVerticesSortedTopologicallyFromSources()
+                .stream()
+                .map(JobVertex::getPreferredResources)
+                .collect(
+                        Collectors.toList()));
+
         env.execute();
+
     }
 
     private static Method getSetResourcesMethodAndSetAccessible(final Class<?> clazz)
