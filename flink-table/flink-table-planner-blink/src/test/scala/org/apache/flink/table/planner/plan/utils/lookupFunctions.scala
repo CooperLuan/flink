@@ -58,6 +58,12 @@ class TableFunctionWithRow extends TableFunction[Row] {
 }
 
 @SerialVersionUID(1L)
+class AsyncTableFunction1 extends AsyncTableFunction[RowData] {
+  def eval(resultFuture: CompletableFuture[JCollection[RowData]], a: Integer): Unit = {
+  }
+}
+
+@SerialVersionUID(1L)
 class InvalidAsyncTableFunctionEvalSignature1 extends AsyncTableFunction[RowData] {
   def eval(a: Integer, b: StringData, c: LocalDateTime): Unit = {
   }

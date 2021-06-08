@@ -24,17 +24,18 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.plan.utils.{AsyncTableFunction1, _}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.utils.EncodingUtils
-
 import org.junit.Assert.{assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -44,7 +45,6 @@ import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.sql.Timestamp
 import _root_.java.util
 import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
-
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -55,6 +55,9 @@ import _root_.scala.collection.JavaConversions._
 class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Serializable {
 
   private val util = streamTestUtil()
+  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val LONG = new BigIntType()
+  val INT = new IntType()
 
   @Before
   def before(): Unit ={
@@ -312,6 +315,87 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       """.stripMargin
 
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithLookupFilterPushDown(): Unit = {
+    createLookupTable("LookupTableAsync1", new AsyncTableFunction1)
+
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |LEFT JOIN LookupTableAsync1 FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id AND D.age = 10
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithMultisinkWithFilterPushDown1(): Unit = {
+    createLookupTable("LookupTableAsync1", new AsyncTableFunction1)
+
+    util.tableEnv.createTemporaryView("v_vvv", util.tableEnv.sqlQuery(
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN LookupTableAsync1 FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |""".stripMargin))
+
+    val stmtSet = util.tableEnv.createStatementSet()
+
+    val appendSink1 = util.createRetractTableSink(
+      Array("a", "b", "id", "name"),
+      Array(INT, STRING, INT, STRING))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink1", appendSink1)
+    stmtSet.addInsert("appendSink1", util.tableEnv.sqlQuery(
+      """
+        |SELECT a,b,id,name FROM v_vvv
+        |WHERE age = 10
+        |""".stripMargin))
+
+    util.verifyExecPlan(stmtSet)
+    // util.verifyExplain(stmtSet)
+  }
+
+  @Test
+  def testJoinTemporalTableWithMultisinkWithFilterPushDown2(): Unit = {
+    createLookupTable("LookupTableAsync1", new AsyncTableFunction1)
+
+    util.tableEnv.createTemporaryView("v_vvv", util.tableEnv.sqlQuery(
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN LookupTableAsync1 FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |""".stripMargin))
+
+    val stmtSet = util.tableEnv.createStatementSet()
+
+    val appendSink1 = util.createRetractTableSink(
+      Array("a", "b", "id", "name"),
+      Array(INT, STRING, INT, STRING))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink1", appendSink1)
+    stmtSet.addInsert("appendSink1", util.tableEnv.sqlQuery(
+      """
+        |SELECT a,b,id,name FROM v_vvv
+        |WHERE age = 10
+        |""".stripMargin))
+
+    val appendSink2 = util.createRetractTableSink(
+      Array("a", "b", "id", "name"),
+      Array(INT, STRING, INT, STRING))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "appendSink2", appendSink2)
+    stmtSet.addInsert("appendSink2", util.tableEnv.sqlQuery(
+      """
+        |SELECT a,b,id,name FROM v_vvv
+        |WHERE age = 30
+        |""".stripMargin))
+
+    // util.verifyExecPlan(stmtSet)
+    util.verifyExplain(stmtSet)
   }
 
   @Test

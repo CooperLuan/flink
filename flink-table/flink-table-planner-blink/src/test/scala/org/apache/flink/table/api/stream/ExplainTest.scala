@@ -116,7 +116,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
       "upsertSink2", upsertSink2)
     stmtSet.addInsert("upsertSink2", table2)
 
-    util.verifyExplain(stmtSet, extraDetails: _*)
+    util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
   @Test

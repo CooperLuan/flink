@@ -917,6 +917,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   private def doVerifyExplain(explainResult: String, needReplaceEstimatedCost: Boolean): Unit = {
+    println(explainResult)
     val actual = if (needReplaceEstimatedCost) {
       replaceEstimatedCost(explainResult)
     } else {
