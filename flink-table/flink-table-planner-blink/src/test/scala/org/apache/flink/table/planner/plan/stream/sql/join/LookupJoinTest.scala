@@ -331,6 +331,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
+  /**
+   * testcase with 2 insert
+   * lookup with 2 filter condition
+   */
   @Test
   def testJoinTemporalTableWithMultisinkWithFilterPushDown1(): Unit = {
     createLookupTable("LookupTableAsync1", new AsyncTableFunction1)
@@ -359,6 +363,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     // util.verifyExplain(stmtSet)
   }
 
+  /**
+   * testcase with 1 insert
+   * lookup with 2 filter condition
+   */
   @Test
   def testJoinTemporalTableWithMultisinkWithFilterPushDown2(): Unit = {
     createLookupTable("LookupTableAsync1", new AsyncTableFunction1)
