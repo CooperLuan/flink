@@ -134,15 +134,24 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
                                         + "However, %s doesn't implement this method.",
                                 tableSink.getClass().getCanonicalName()));
             }
-            return dsSink.getTransformation();
+            Transformation<Object> sinkTransformation = dsSink.getTransformation();
+            if (parallelism > 0) {
+                sinkTransformation.setParallelism(parallelism);
+            }
+            return sinkTransformation;
         } else if (tableSink instanceof DataStreamTableSink) {
             // In case of table to DataStream through
             // StreamTableEnvironment#toAppendStream/toRetractStream,
             // we insert a DataStreamTableSink that wraps the given DataStream as a LogicalSink. It
             // is no real table sink, so we just need translate its input to Transformation.
-            return (Transformation<Object>)
-                    translateToTransformation(
-                            planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
+            Transformation<Object> sinkTransformation =
+                    (Transformation<Object>)
+                            translateToTransformation(
+                                    planner, ((DataStreamTableSink<T>) tableSink).withChangeFlag());
+            if (parallelism > 0) {
+                sinkTransformation.setParallelism(parallelism);
+            }
+            return sinkTransformation;
         } else {
             throw new TableException(
                     String.format(
