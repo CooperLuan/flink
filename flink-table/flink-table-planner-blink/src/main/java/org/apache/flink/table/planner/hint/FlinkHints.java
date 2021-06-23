@@ -64,7 +64,12 @@ public abstract class FlinkHints {
         }
         Map<String, String> newProps = new HashMap<>();
         newProps.putAll(props);
-        newProps.putAll(hints);
+        for (final Map.Entry<String, String> entry : hints.entrySet()) {
+            if (entry.getKey().equals("p")) {
+                continue;
+            }
+            newProps.put(entry.getKey(), entry.getValue());
+        }
         return Collections.unmodifiableMap(newProps);
     }
 }

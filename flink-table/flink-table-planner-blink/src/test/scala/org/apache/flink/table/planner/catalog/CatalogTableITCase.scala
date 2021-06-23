@@ -293,13 +293,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
     val query =
       """
-        |INSERT INTO T2 /*+ OPTIONS('format.field-delimiter' = '|') */
+        |INSERT INTO T2 /*+ OPTIONS('p' = '1') */
         |SELECT
+        |  /*+ OPTIONS('p' = '2') */
         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
         |  MAX(ts6),
         |  COUNT(*),
         |  MAX(price)
-        |FROM T1 /*+ OPTIONS('format.line-delimiter' = '#') */
+        |FROM T1 /*+ OPTIONS('p' = '3') */
         |GROUP BY TUMBLE(ts, INTERVAL '5' SECOND)
       """.stripMargin
     tableEnv.executeSql(query).await()

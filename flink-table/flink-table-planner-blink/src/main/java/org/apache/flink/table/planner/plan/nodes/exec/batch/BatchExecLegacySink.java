@@ -45,7 +45,8 @@ public class BatchExecLegacySink<T> extends CommonExecLegacySink<T>
             @Nullable String[] upsertKeys,
             InputProperty inputProperty,
             LogicalType outputType,
-            String description) {
+            String description,
+            int parallelism) {
         super(
                 tableSink,
                 upsertKeys,
@@ -53,7 +54,8 @@ public class BatchExecLegacySink<T> extends CommonExecLegacySink<T>
                 false, // isStreaming
                 inputProperty,
                 outputType,
-                description);
+                description,
+                parallelism);
     }
 
     @Override

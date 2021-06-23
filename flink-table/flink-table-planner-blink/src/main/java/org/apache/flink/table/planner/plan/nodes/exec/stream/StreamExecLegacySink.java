@@ -49,7 +49,8 @@ public class StreamExecLegacySink<T> extends CommonExecLegacySink<T>
             boolean needRetraction,
             InputProperty inputProperty,
             LogicalType outputType,
-            String description) {
+            String description,
+            int parallelism) {
         super(
                 tableSink,
                 upsertKeys,
@@ -57,7 +58,8 @@ public class StreamExecLegacySink<T> extends CommonExecLegacySink<T>
                 true, // isStreaming
                 inputProperty,
                 outputType,
-                description);
+                description,
+                parallelism);
     }
 
     protected RowType checkAndConvertInputTypeIfNeeded(RowType inputRowType) {

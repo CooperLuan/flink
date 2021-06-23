@@ -64,6 +64,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
     protected final @Nullable String[] upsertKeys;
     protected final boolean needRetraction;
     protected final boolean isStreaming;
+    protected final int parallelism;
 
     public CommonExecLegacySink(
             TableSink<T> tableSink,
@@ -72,12 +73,14 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<Object>
             boolean isStreaming,
             InputProperty inputProperty,
             LogicalType outputType,
-            String description) {
+            String description,
+            int parallelism) {
         super(Collections.singletonList(inputProperty), outputType, description);
         this.tableSink = tableSink;
         this.upsertKeys = upsertKeys;
         this.needRetraction = needRetraction;
         this.isStreaming = isStreaming;
+        this.parallelism = parallelism;
     }
 
     @SuppressWarnings("unchecked")
