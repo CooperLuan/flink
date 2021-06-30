@@ -42,14 +42,16 @@ class StreamPhysicalLegacySink[T](
     inputRel: RelNode,
     hints: util.List[RelHint],
     sink: TableSink[T],
-    sinkName: String)
+    sinkName: String,
+    parallelism: Int = -1)
   extends LegacySink(cluster, traitSet, inputRel, hints, sink, sinkName)
   with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalLegacySink(cluster, traitSet, inputs.get(0), hints, sink, sinkName)
+    new StreamPhysicalLegacySink(cluster, traitSet, inputs.get(0), hints, sink, sinkName,
+      parallelism)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -66,7 +68,8 @@ class StreamPhysicalLegacySink[T](
       needRetraction,
       InputProperty.DEFAULT,
       fromDataTypeToLogicalType(sink.getConsumedDataType),
-      getRelDetailedDescription
+      getRelDetailedDescription,
+      parallelism
     )
   }
 }

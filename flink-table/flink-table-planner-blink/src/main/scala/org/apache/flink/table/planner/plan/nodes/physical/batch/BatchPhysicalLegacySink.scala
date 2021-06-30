@@ -42,12 +42,14 @@ class BatchPhysicalLegacySink[T](
     inputRel: RelNode,
     hints: util.List[RelHint],
     sink: TableSink[T],
-    sinkName: String)
+    sinkName: String,
+    parallelism: Int = -1)
   extends LegacySink(cluster, traitSet, inputRel, hints, sink, sinkName)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchPhysicalLegacySink(cluster, traitSet, inputs.get(0), hints, sink, sinkName)
+    new BatchPhysicalLegacySink(cluster, traitSet, inputs.get(0), hints, sink, sinkName,
+      parallelism)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -63,7 +65,8 @@ class BatchPhysicalLegacySink[T](
       // so it's dam behavior is BLOCKING
       InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build(),
       fromDataTypeToLogicalType(sink.getConsumedDataType),
-      getRelDetailedDescription
+      getRelDetailedDescription,
+      parallelism
     )
   }
 }
